@@ -181,7 +181,7 @@ wckbuttons_load_themes (GtkWidget *theme_name_treeview, WBPlugin *wb)
                         continue;
                 }
 
-                themedir = get_unity_theme_dir (file, NULL);
+                themedir = get_theme_dir (file, NULL);
                 if (!themedir)
                     continue;
 

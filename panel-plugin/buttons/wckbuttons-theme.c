@@ -20,12 +20,197 @@
  *
  */
 
+#include <libxfce4util/libxfce4util.h>
+#include <common/ui_style.h>
 #include <common/mypixmap.h>
 #include <common/theme.h>
 
 #include "wckbuttons-theme.h"
 
 #define XPM_COLOR_SYMBOL_SIZE 22
+
+static gboolean
+set_g_value (const gchar * lvalue, const GValue *rvalue, Settings *rc)
+{
+    gint i;
+
+    TRACE ("entering setValue");
+
+    g_return_val_if_fail (lvalue != NULL, FALSE);
+    g_return_val_if_fail (rvalue != NULL, FALSE);
+
+    for (i = 0; rc[i].option; i++)
+    {
+        if (!g_ascii_strcasecmp (lvalue, rc[i].option))
+        {
+            if (rvalue)
+            {
+                if (rc[i].value)
+                {
+                    g_value_unset (rc[i].value);
+                    g_value_init (rc[i].value, G_VALUE_TYPE(rvalue));
+                }
+                else
+                {
+                    rc[i].value = g_new0(GValue, 1);
+                    g_value_init (rc[i].value, G_VALUE_TYPE(rvalue));
+                }
+
+                g_value_copy (rvalue, rc[i].value);
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+static gboolean
+set_string_value (const gchar * lvalue, const gchar *value, Settings *rc)
+{
+    GValue tmp_val = {0, };
+    g_value_init(&tmp_val, G_TYPE_STRING);
+    g_value_set_static_string(&tmp_val, value);
+    return set_g_value (lvalue, &tmp_val, rc);
+}
+
+/* use xfwm4 buttons naming */
+static void get_wm_pixbuf (const gchar *themedir, WBPlugin *wb)
+{
+    gint i,j;
+    gchar imagename[30];
+    xfwmColorSymbol colsym[ XPM_COLOR_SYMBOL_SIZE + 1 ];
+
+    Settings rc[] = {
+        /* Do not change the order of the following parameters */
+        {"active_text_color", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_text_color", NULL, G_TYPE_STRING, FALSE},
+        {"active_text_shadow_color", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_text_shadow_color", NULL, G_TYPE_STRING, FALSE},
+        {"active_border_color", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_border_color", NULL, G_TYPE_STRING, FALSE},
+        {"active_color_1", NULL, G_TYPE_STRING, FALSE},
+        {"active_hilight_1", NULL, G_TYPE_STRING, FALSE},
+        {"active_shadow_1", NULL, G_TYPE_STRING, FALSE},
+        {"active_mid_1", NULL, G_TYPE_STRING, FALSE},
+        {"active_color_2", NULL, G_TYPE_STRING, FALSE},
+        {"active_hilight_2", NULL, G_TYPE_STRING, FALSE},
+        {"active_shadow_2", NULL, G_TYPE_STRING, FALSE},
+        {"active_mid_2", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_color_1", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_hilight_1", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_shadow_1", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_mid_1", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_color_2", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_hilight_2", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_shadow_2", NULL, G_TYPE_STRING, FALSE},
+        {"inactive_mid_2", NULL, G_TYPE_STRING, FALSE}
+    };
+
+    static const char *ui_part[] = {
+        "fg",
+        "mix_bg_fg",
+        "dark",
+        "dark",
+        "fg",
+        "fg",
+        "bg",
+        "light",
+        "dark",
+        "mid",
+        "bg",
+        "light",
+        "dark",
+        "mid",
+        "bg",
+        "light",
+        "dark",
+        "mid",
+        "bg",
+        "light",
+        "dark",
+        "mid",
+        NULL
+    };
+
+    static const char *ui_state[] = {
+        "normal",
+        "normal",
+        "normal",
+        "insensitive",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        "normal",
+        NULL
+    };
+
+    static const char *button_names[] = {
+      //~ "menu",
+      //~ "stick",
+      //~ "shade",
+      "hide",
+      "maximize-toggled",
+      "maximize",
+      "close"
+    };
+
+    static const char *button_state_names[] = {
+      "inactive",
+      "active",
+      "prelight",
+      "pressed"
+    };
+
+// TODO: causes compilation error: doesn't recognize ui_part[i]="fg" as a GTK Style Property. Some 2 to 3 differences?
+/*
+    for (i = 0; ui_part[i] && ui_state[i]; i++)
+    {
+        gchar *color;
+
+        if (strcmp (ui_part[i],  "mix_bg_fg") == 0)
+        {
+            color = mix_bg_fg  (GTK_WIDGET(wb->plugin), (GtkStateFlags) "normal", wb->prefs->inactive_text_alpha / 100.0, wb->prefs->inactive_text_shade / 100.0);
+        }
+        else
+        {
+            color = get_ui_color  (GTK_WIDGET(wb->plugin), ui_part[i], (GtkStateFlags) ui_state[i]);
+        }
+        set_string_value (rc[i].option, color, rc);
+        g_free (color);
+    }
+*/
+
+    for (i = 0; i < XPM_COLOR_SYMBOL_SIZE; i++)
+    {
+        colsym[i].name = rc[i].option;
+        colsym[i].value = g_value_get_string(rc[i].value);
+    }
+    colsym[XPM_COLOR_SYMBOL_SIZE].name = NULL;
+    colsym[XPM_COLOR_SYMBOL_SIZE].value = NULL;
+
+    for (i = 0; i < IMAGES_BUTTONS; i++)
+    {
+        for (j = 0; j < IMAGES_STATES; j++)
+        {
+            g_snprintf(imagename, sizeof (imagename), "%s-%s", button_names[i], button_state_names[j]);
+            wb->pixbufs[i][j] = pixbuf_load (themedir, imagename, colsym);
+        }
+    }
+}
 
 
 static void get_unity_pixbuf (const gchar *themedir, WBPlugin *wb) {
@@ -199,28 +384,29 @@ void load_theme (const gchar *theme, WBPlugin *wb)
     gchar *themedir;
 
     /* get theme dir */
-    themedir = get_unity_theme_dir (wb->prefs->theme, DEFAULT_THEME);
+    themedir = get_theme_dir (wb->prefs->theme, DEFAULT_THEME);
 
-    if (themedir)
-    {
+    if (strcmp (g_path_get_basename (themedir), "unity") == 0)
         get_unity_pixbuf (themedir, wb);
-        g_free (themedir);
+    else
+        get_wm_pixbuf (themedir, wb);
 
-            /* try to replace missing images */
-        
-            for (i = 0; i < IMAGES_STATES; i++)
-            {
-                if (!wb->pixbufs[IMAGE_UNMAXIMIZE][i])
-                    wb->pixbufs[IMAGE_UNMAXIMIZE][i] = wb->pixbufs[IMAGE_MAXIMIZE][i];
-            }
-            for (i = 0; i < IMAGES_BUTTONS; i++)
-            {
-                if (!wb->pixbufs[i][IMAGE_UNFOCUSED] || !wb->pixbufs[i][IMAGE_PRESSED])
-                    wb->pixbufs[i][IMAGE_UNFOCUSED] = wb->pixbufs[i][IMAGE_FOCUSED];
-        
-                if (!wb->pixbufs[i][IMAGE_PRELIGHT])
-                    wb->pixbufs[i][IMAGE_PRELIGHT] = wb->pixbufs[i][IMAGE_PRESSED];
-            }
+    g_free (themedir);
+
+    /* try to replace missing images */
+
+    for (i = 0; i < IMAGES_STATES; i++)
+    {
+        if (!wb->pixbufs[IMAGE_UNMAXIMIZE][i])
+            wb->pixbufs[IMAGE_UNMAXIMIZE][i] = wb->pixbufs[IMAGE_MAXIMIZE][i];
+    }
+    for (i = 0; i < IMAGES_BUTTONS; i++)
+    {
+        if (!wb->pixbufs[i][IMAGE_UNFOCUSED] || !wb->pixbufs[i][IMAGE_PRESSED])
+            wb->pixbufs[i][IMAGE_UNFOCUSED] = wb->pixbufs[i][IMAGE_FOCUSED];
+
+        if (!wb->pixbufs[i][IMAGE_PRELIGHT])
+            wb->pixbufs[i][IMAGE_PRELIGHT] = wb->pixbufs[i][IMAGE_PRESSED];
     }
 }
 
